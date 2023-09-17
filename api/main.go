@@ -2,9 +2,6 @@ package main
 
 import (
     "context"
-    "crypto/hmac"
-    "crypto/sha1"
-    "encoding/hex"
     "log"
 
     "cloud.google.com/go/firestore"
@@ -73,29 +70,9 @@ func main() {
     })
 
     app.Post("/api/github-webhook", func(c *fiber.Ctx) error {
-        payload := c.Body()
-        signature := c.Get("X-Hub-Signature")
-
-        secret := []byte("your_webhook_secret") // Replace with your GitHub webhook secret
-
-        if !verifySignature(secret, payload, signature) {
-            return c.Status(401).SendString("Mismatched signature")
-        }
-
-        // Handle the payload here
-        log.Println("Received valid payload")
-
-        return c.SendString("Success")
+        return routes.NewGitHubEvent(c, config, client)
     })
 
     // Start the Fiber app
     log.Fatal(app.Listen(":8080"))
-}
-
-// Verify GitHub Secret
-func verifySignature(secret []byte, data []byte, signature string) bool {
-    mac := hmac.New(sha1.New, secret)
-    mac.Write(data)
-    expectedMAC := hex.EncodeToString(mac.Sum(nil))
-    return hmac.Equal([]byte("sha1="+expectedMAC), []byte(signature))
 }
