@@ -132,22 +132,12 @@ func (o *OpenAI) FetchEmbedding(inputText string) (OpenAIEmbeddingResponse, erro
 	return response, nil
 }
 
-func (o *OpenAI) CreateBlogPosts(files []string, client *firestore.Client) {
-	for _, file := range files {
-		log.Printf("INFO: Creating blog post for file: %s\n", file)
-
-		// blogPost := o.generateBlogPost(file, client)
-
-	}
-
-}
-
-func (o *OpenAI) generateBlogPost(file string, client *firestore.Client) {
+func (o *OpenAI) GenerateBlogPost(file string, client *firestore.Client) (string, error) {
 	// Get file contents
 	content, err := ioutil.ReadFile(file)
 	if err != nil {
 		log.Printf("ERROR: Failed to read file %s: %v", file, err)
-		return
+		return "", err
 	}
 
 	// Parse file extension
@@ -160,11 +150,10 @@ func (o *OpenAI) generateBlogPost(file string, client *firestore.Client) {
 	blogPost, err := o.CreateGPTPrompt(messages)
 	if err != nil {
 		log.Printf("ERROR: Failed to generate blog post: %v", err)
-		return
+		return "", err
 	}
 
-	log.Printf("DEBUG: Generated blog post: %s", blogPost)
-
+	return blogPost, nil
 	// post := models.Post{
 	// 	Title:   "Generated title",
 	// 	Content: blogPost,

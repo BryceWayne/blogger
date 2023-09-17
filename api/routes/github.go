@@ -41,12 +41,12 @@ func NewGitHubEvent(c *fiber.Ctx, config *utils.Config, client *firestore.Client
 	}
 	log.Println("INFO: Added GitHub Event to Firestore.")
 
-	go handleCommits(config, payload.Commits)
+	go handleCommits(config, client, payload.Commits)
 
 	return c.Status(201).JSON(fiber.Map{"status": "GitHub Event logged successfully."})
 }
 
-func handleCommits(config *utils.Config, commits []models.Commits) {
+func handleCommits(config *utils.Config, client *firestore.Client, commits []models.Commits) {
 	files := map[string][]string{
 		"Added":    []string{},
 		"Modified": []string{},
@@ -63,8 +63,16 @@ func handleCommits(config *utils.Config, commits []models.Commits) {
 	pullChanges()
 
 	ai := models.NewOpenAI(config.OpenAIKey)
-	log.Printf("DEBUG: ai created %v", ai)
 
+	for _, file := range files["Added"] {
+		blogPost, err := ai.GenerateBlogPost(file, client)
+		if err != nil {
+			log.Printf("Error creating blog post for: %s", file)
+			break
+		}
+		log.Printf("DEBUG: Generated blog post: %s", blogPost)
+
+	}
 	// go ai.CreateBlogPosts(files["Added"])
 	// go ai.UpdateBlogPosts(files["Modified"])
 	// go ai.RemoveBlogPosts(files["Removed"])
