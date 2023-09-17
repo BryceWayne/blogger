@@ -7,6 +7,7 @@ import (
 
 type Config struct {
 	JwtSecret     string
+	OpenAIKey     string
 	WebhookSecret string
 	Env           string
 	GCPCreds      string

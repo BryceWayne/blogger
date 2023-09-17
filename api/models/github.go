@@ -1,20 +1,11 @@
 package models
 
 type WebhookPayload struct {
-	Action     string `json:"action"`
-	Issue      Issue  `json:"issue"`
-	Repository Repo   `json:"repository"`
-	Sender     User   `json:"sender"`
-	Commits    []struct {
-		Added     []string `json:"added"`
-		Removed   []string `json:"removed"`
-		Modified  []string `json:"modified"`
-		Author    Author   `json:"author"`
-		Committer Author   `json:"committer"`
-		Message   string   `json:"message"`
-		URL       string   `json:"url"`
-		Distinct  bool     `json:"distinct"`
-	} `json:"commits"`
+	Action     string    `json:"action"`
+	Issue      Issue     `json:"issue"`
+	Repository Repo      `json:"repository"`
+	Sender     User      `json:"sender"`
+	Commits    []Commits `json:"commits"`
 }
 
 type Issue struct {
@@ -41,4 +32,10 @@ type User struct {
 	Login string `json:"login"`
 	ID    int    `json:"id"`
 	// Add other fields as needed
+}
+
+type Commits struct {
+	Added    []string `json:"added"`
+	Removed  []string `json:"removed"`
+	Modified []string `json:"modified"`
 }

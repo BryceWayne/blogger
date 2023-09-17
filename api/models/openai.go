@@ -7,6 +7,9 @@ import (
 	"io/ioutil"
 	"log"
 	"net/http"
+	"path/filepath"
+
+	"cloud.google.com/go/firestore"
 )
 
 type OpenAI struct {
@@ -37,45 +40,40 @@ type Message struct {
 	Content string `json:"content"`
 }
 
-func GenerateBlogPrompt(fileContent string, fileExtension string) []models.Message {
-    // Your code for sending the ChatCompletionRequest to GPT
+func GenerateBlogPrompt(fileContent string, fileExtension string) []Message {
+	// Escaping backticks inside the string
+	instructionContent := fmt.Sprintf("# Blog Post Creation Based on a Code Snippet\n\n"+
+		"## Introduction\n"+
+		"Create a detailed and engaging blog post that explains the following code snippet. "+
+		"The code is written in %s, and it has a docstring that provides a brief explanation of what the function does.\n\n"+
+		"## Code Snippet\n"+
+		"\\`\\`\\`%s\n"+
+		"%s\n"+
+		"\\`\\`\\`\n\n"+
+		"## Requirements\n"+
+		"1. Start with an engaging introduction that sets the context for the code snippet.\n"+
+		"2. Explain any pre-requisites or concepts that the reader should understand before diving into the code.\n"+
+		"3. Walk through the code snippet, line-by-line, explaining what each line does.\n"+
+		"4. If the function uses any special programming techniques, elaborate on them.\n"+
+		"5. Provide one or more use-cases or examples demonstrating how this function could be used in a real-world scenario.\n"+
+		"6. Conclude with a summary and potential future enhancements or applications.\n"+
+		"7. Use subheadings to break up the text and make it easier to read.\n\n"+
+		"## Output\n"+
+		"The final blog post should be formatted in Markdown and be both informative and engaging.", "Go", fileExtension, fileContent)
 
-    instructionContent := fmt.Sprintf(`# Blog Post Creation Based on a Code Snippet
+	messages := []Message{
+		{
+			Role:    "system",
+			Content: "You are a helpful assistant.",
+		},
+		{
+			Role:    "user",
+			Content: instructionContent,
+		},
+	}
 
-## Introduction
-Create a detailed and engaging blog post that explains the following code snippet. The code is written in %s, and it has a docstring that provides a brief explanation of what the function does.
-
-## Code Snippet
-\`\`\`%s
-%s
-\`\`\`
-
-## Requirements
-1. Start with an engaging introduction that sets the context for the code snippet.
-2. Explain any pre-requisites or concepts that the reader should understand before diving into the code.
-3. Walk through the code snippet, line-by-line, explaining what each line does.
-4. If the function uses any special programming techniques, elaborate on them.
-5. Provide one or more use-cases or examples demonstrating how this function could be used in a real-world scenario.
-6. Conclude with a summary and potential future enhancements or applications.
-7. Use subheadings to break up the text and make it easier to read.
-
-## Output
-The final blog post should be formatted in Markdown and be both informative and engaging.`, "Go", fileExtension, fileContent)
-
-    messages := []Message{
-        {
-            Role: "system",
-            Content: "You are a helpful assistant.",
-        },
-        {
-            Role: "user",
-            Content: instructionContent,
-        },
-    }
-    
-    return messages
+	return messages
 }
-
 
 type ChatCompletionResponse struct {
 	ID      string `json:"id"`
@@ -88,8 +86,6 @@ type ChatCompletionResponse struct {
 		} `json:"message"`
 	} `json:"choices"`
 }
-
-
 
 func NewOpenAI(apiKey string) *OpenAI {
 	return &OpenAI{APIKey: apiKey}
@@ -136,16 +132,17 @@ func (o *OpenAI) FetchEmbedding(inputText string) (OpenAIEmbeddingResponse, erro
 	return response, nil
 }
 
-func (o *OpenAI) CreateBlogPosts(files []string) {
+func (o *OpenAI) CreateBlogPosts(files []string, client *firestore.Client) {
 	for _, file := range files {
 		log.Printf("INFO: Creating blog post for file: %s\n", file)
 
-		go o.generateBlogPost(file)
+		// blogPost := o.generateBlogPost(file, client)
+
 	}
 
 }
 
-func (o *OpenAI) generateBlogPost(file string) {
+func (o *OpenAI) generateBlogPost(file string, client *firestore.Client) {
 	// Get file contents
 	content, err := ioutil.ReadFile(file)
 	if err != nil {
@@ -158,27 +155,29 @@ func (o *OpenAI) generateBlogPost(file string) {
 	log.Printf("DEBUG: File extension: %s", fileExtension)
 
 	// Generate blog post using GPT (replace with your actual GPT call)
-	messages := GenerateBlogPrompt(string(content), "go")
+	messages := GenerateBlogPrompt(string(content), fileExtension)
 
-	blogPost, err := o.CreateGPTPrompt(message)
+	blogPost, err := o.CreateGPTPrompt(messages)
 	if err != nil {
 		log.Printf("ERROR: Failed to generate blog post: %v", err)
 		return
 	}
 
-	post := models.Post{
-		Title:   "Generated title",
-		Content: blogPost,
-		File:    file,
-	}
+	log.Printf("DEBUG: Generated blog post: %s", blogPost)
 
-	// Add blog post to Firestore
-	_, _, err = client.Collection("posts").Add(ctx, post)
-	if err != nil {
-		log.Printf("ERROR: Failed to add blog post to Firestore: %v", err)
-	} else {
-		log.Println("INFO: Successfully added blog post to Firestore.")
-	}
+	// post := models.Post{
+	// 	Title:   "Generated title",
+	// 	Content: blogPost,
+	// 	File:    file,
+	// }
+
+	// docRef := client.Collection("posts").Doc(post.File)
+	// _, err = docRef.Set(ctx, post)
+	// if err != nil {
+	// 	log.Printf("ERROR: Failed to add blog post to Firestore: %v", err)
+	// } else {
+	// 	log.Println("INFO: Successfully added blog post to Firestore.")
+	// }
 
 }
 
