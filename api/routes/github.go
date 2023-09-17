@@ -65,6 +65,7 @@ func handleCommits(config *utils.Config, client *firestore.Client, commits []mod
 	ai := models.NewOpenAI(config.OpenAIKey)
 
 	for _, file := range files["Added"] {
+		file = "/app/blogger/" + file
 		blogPost, err := ai.GenerateBlogPost(file, client)
 		if err != nil {
 			log.Printf("Error creating blog post for: %s", file)
