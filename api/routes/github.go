@@ -6,7 +6,6 @@ import (
 	"crypto/sha1"
 	"encoding/hex"
 	"log"
-	"os"
 	"os/exec"
 
 	"cloud.google.com/go/firestore"
@@ -40,23 +39,26 @@ func NewGitHubEvent(c *fiber.Ctx, config *utils.Config, client *firestore.Client
 		log.Printf("ERROR: Failed adding event to Firestore: %v", err)
 		return err
 	}
+	log.Println("INFO: Added GitHub Event to Firestore.")
 
 	go func() {
-		cmd := exec.Command("git", "-C", "./api", "pull", "origin", "master") // Replace 'master' with the branch you want
-		cmd.Stdout = os.Stdout
-		cmd.Stderr = os.Stderr
-		err := cmd.Run()
-		if err != nil {
-			log.Printf("ERROR: Failed to pull changes: %v", err)
-			return
-		}
-		log.Println("INFO: Local repo updated successfully.")
-
 		// Loop through commits to log added, modified, and removed files
 		for _, commit := range payload.Commits {
 			log.Println("DEBUG: Added files:", commit.Added)
+			// Create new blog posts for each new file.
 			log.Println("DEBUG: Modified files:", commit.Modified)
+			// Update existing blog posts to address modifications
 			log.Println("DEBUG: Removed files:", commit.Removed)
+			// Delete blog posts of removed files
+
+			// Shell command to pull changes from GitHub
+			cmd := exec.Command("git", "-C", "/app/blogger", "pull", "origin", "master")
+			err := cmd.Run()
+			if err != nil {
+				log.Printf("ERROR: Failed to pull changes from GitHub: %v", err)
+			} else {
+				log.Println("INFO: Successfully pulled changes from GitHub.")
+			}
 		}
 	}()
 
