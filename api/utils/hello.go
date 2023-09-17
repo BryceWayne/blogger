@@ -3,5 +3,5 @@ package utils
 import "fmt"
 
 func hello() {
-  fmt.Println("Hello, GPT!")
+  fmt.Println("Hello, code blogger!")
 }
