@@ -190,7 +190,7 @@ func (o *OpenAI) CreateGPTPrompt(messages []Message) (string, error) {
 	url := "https://api.openai.com/v1/chat/completions"
 
 	reqBody := ChatCompletionRequest{
-		Model:    "gpt-4",
+		Model:    "gpt-3.5-turbo",
 		Messages: messages,
 	}
 
