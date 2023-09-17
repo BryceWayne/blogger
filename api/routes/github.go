@@ -42,7 +42,7 @@ func NewGitHubEvent(c *fiber.Ctx, config *utils.Config, client *firestore.Client
 	}
 
 	go func() {
-		cmd := exec.Command("git", "-C", "/app/api", "pull", "origin", "master") // Replace 'master' with the branch you want
+		cmd := exec.Command("git", "-C", "./api", "pull", "origin", "master") // Replace 'master' with the branch you want
 		cmd.Stdout = os.Stdout
 		cmd.Stderr = os.Stderr
 		err := cmd.Run()
