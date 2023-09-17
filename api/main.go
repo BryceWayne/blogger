@@ -2,6 +2,9 @@ package main
 
 import (
     "context"
+    "crypto/hmac"
+    "crypto/sha1"
+    "encoding/hex"
     "log"
 
     "cloud.google.com/go/firestore"
@@ -16,9 +19,10 @@ import (
 
 var client *firestore.Client
 var ctx = context.Background()
-var jwtSecret []byte
 var app *firebase.App
 var config *utils.Config // Assume you've a ConfigType in utils
+var jwtSecret []byte
+var webhookSecret []byte
 
 func init() {
     // Load the .env file
@@ -33,6 +37,8 @@ func init() {
     }
 
     jwtSecret = []byte(config.JwtSecret)
+    webhookSecret = []byte(config.WebhookSecret)
+
     opt := option.WithCredentialsFile(config.GCPCreds)
 
     // Initialize Firebase App
@@ -58,14 +64,38 @@ func main() {
     //     Max: 10,
     // }))
 
-    app.Get("/post", func(c *fiber.Ctx) error {
-        return routes.CreatePost(c, client)
-    })
+    // app.Get("/post", func(c *fiber.Ctx) error {
+    //     return routes.CreatePost(c, client)
+    // })
 
     app.Get("/posts", func(c *fiber.Ctx) error {
         return routes.GetPosts(c, client)
     })
 
+    app.Post("/api/github-webhook", func(c *fiber.Ctx) error {
+        payload := c.Body()
+        signature := c.Get("X-Hub-Signature")
+
+        secret := []byte("your_webhook_secret") // Replace with your GitHub webhook secret
+
+        if !verifySignature(secret, payload, signature) {
+            return c.Status(401).SendString("Mismatched signature")
+        }
+
+        // Handle the payload here
+        log.Println("Received valid payload")
+
+        return c.SendString("Success")
+    })
+
     // Start the Fiber app
     log.Fatal(app.Listen(":8080"))
+}
+
+// Verify GitHub Secret
+func verifySignature(secret []byte, data []byte, signature string) bool {
+    mac := hmac.New(sha1.New, secret)
+    mac.Write(data)
+    expectedMAC := hex.EncodeToString(mac.Sum(nil))
+    return hmac.Equal([]byte("sha1="+expectedMAC), []byte(signature))
 }

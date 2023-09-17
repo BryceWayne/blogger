@@ -6,15 +6,21 @@ import (
 )
 
 type Config struct {
-	JwtSecret string
-	Env       string
-	GCPCreds  string
+	JwtSecret     string
+	WebhookSecret string
+	Env           string
+	GCPCreds      string
 }
 
 func LoadConfig() (*Config, error) {
 	jwtSecret, exists := os.LookupEnv("JWT_SECRET")
 	if !exists {
 		return nil, fmt.Errorf("JWT_SECRET not set")
+	}
+
+	webhookSecret, exists := os.LookupEnv("WEBHOOK_SECRET")
+	if !exists {
+		return nil, fmt.Errorf("WEBHOOK_SECRET not set")
 	}
 
 	env, exists := os.LookupEnv("ENV")
@@ -28,8 +34,9 @@ func LoadConfig() (*Config, error) {
 	}
 
 	return &Config{
-		JwtSecret: jwtSecret,
-		Env:       env,
-		GCPCreds:  gcpCreds,
+		JwtSecret:     jwtSecret,
+		WebhookSecret: webhookSecret,
+		Env:           env,
+		GCPCreds:      gcpCreds,
 	}, nil
 }
