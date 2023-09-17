@@ -153,20 +153,24 @@ func (o *OpenAI) GenerateBlogPost(file string, client *firestore.Client) (string
 		return "", err
 	}
 
-	return blogPost, nil
-	// post := models.Post{
-	// 	Title:   "Generated title",
-	// 	Content: blogPost,
-	// 	File:    file,
-	// }
+	post := struct {
+		Title   string `json:"title"`
+		Content string `json:"content"`
+		File    string `json:"file"`
+	}{
+		Title:   "Generated title",
+		Content: blogPost,
+		File:    file,
+	}
 
-	// docRef := client.Collection("posts").Doc(post.File)
-	// _, err = docRef.Set(ctx, post)
-	// if err != nil {
-	// 	log.Printf("ERROR: Failed to add blog post to Firestore: %v", err)
-	// } else {
-	// 	log.Println("INFO: Successfully added blog post to Firestore.")
-	// }
+	docRef := client.Collection("posts").Doc(post.File)
+	_, err = docRef.Set(ctx, post)
+	if err != nil {
+		log.Printf("ERROR: Failed to add blog post to Firestore: %v", err)
+	} else {
+		log.Println("INFO: Successfully added blog post to Firestore.")
+	}
+	return blogPost, nil
 
 }
 
