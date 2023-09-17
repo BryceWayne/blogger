@@ -2,6 +2,7 @@ package models
 
 import (
 	"bytes"
+	"context"
 	"encoding/json"
 	"fmt"
 	"io/ioutil"
@@ -164,7 +165,7 @@ func (o *OpenAI) GenerateBlogPost(file string, client *firestore.Client) (string
 	}
 
 	docRef := client.Collection("posts").Doc(post.File)
-	_, err = docRef.Set(ctx, post)
+	_, err = docRef.Set(context.Background(), post)
 	if err != nil {
 		log.Printf("ERROR: Failed to add blog post to Firestore: %v", err)
 	} else {
