@@ -18,6 +18,11 @@ func LoadConfig() (*Config, error) {
 		return nil, fmt.Errorf("JWT_SECRET not set")
 	}
 
+	openaiKey, exists := os.LookupEnv("OPENAI_KEY")
+	if !exists {
+		return nil, fmt.Errorf("OPENAI_KEY not set")
+	}
+
 	webhookSecret, exists := os.LookupEnv("WEBHOOK_SECRET")
 	if !exists {
 		return nil, fmt.Errorf("WEBHOOK_SECRET not set")
@@ -35,6 +40,7 @@ func LoadConfig() (*Config, error) {
 
 	return &Config{
 		JwtSecret:     jwtSecret,
+		OpenAIKey:     openaiKey,
 		WebhookSecret: webhookSecret,
 		Env:           env,
 		GCPCreds:      gcpCreds,

@@ -41,28 +41,55 @@ func NewGitHubEvent(c *fiber.Ctx, config *utils.Config, client *firestore.Client
 	}
 	log.Println("INFO: Added GitHub Event to Firestore.")
 
-	go func() {
-		// Loop through commits to log added, modified, and removed files
-		for _, commit := range payload.Commits {
-			log.Println("DEBUG: Added files:", commit.Added)
-			// Create new blog posts for each new file.
-			log.Println("DEBUG: Modified files:", commit.Modified)
-			// Update existing blog posts to address modifications
-			log.Println("DEBUG: Removed files:", commit.Removed)
-			// Delete blog posts of removed files
-
-			// Shell command to pull changes from GitHub
-			cmd := exec.Command("git", "-C", "/app/blogger", "pull", "origin", "master")
-			err := cmd.Run()
-			if err != nil {
-				log.Printf("ERROR: Failed to pull changes from GitHub: %v", err)
-			} else {
-				log.Println("INFO: Successfully pulled changes from GitHub.")
-			}
-		}
-	}()
+	go handleCommits(config, payload.Commits)
 
 	return c.Status(201).JSON(fiber.Map{"status": "GitHub Event logged successfully."})
+}
+
+func handleCommits(config *utils.Config, commits []models.Commit) {
+	files := map[string][]string{
+		"Added":    []string{},
+		"Modified": []string{},
+		"Removed":  []string{},
+	}
+
+	for _, commit := range commits {
+		files["Added"] = append(files["Added"], commit.Added...)
+		files["Modified"] = append(files["Modified"], commit.Modified...)
+		files["Removed"] = append(files["Removed"], commit.Removed...)
+	}
+
+	logCommitInfo(files)
+	pullChanges()
+
+	ai := models.NewOpenAI(config.OpenAIKey)
+
+	go ai.CreateBlogPosts(files["Added"])
+	go ai.UpdateBlogPosts(files["Modified"])
+	go ai.RemoveBlogPosts(files["Removed"])
+}
+
+func logCommitInfo(files map[string][]string) {
+	if len(files["Added"]) > 0 {
+		log.Println("DEBUG: Added files:", files["Added"])
+	}
+	if len(files["Modified"]) > 0 {
+		log.Println("DEBUG: Modified files:", files["Modified"])
+	}
+	if len(files["Removed"]) > 0 {
+		log.Println("DEBUG: Removed files:", files["Removed"])
+	}
+}
+
+func pullChanges() {
+	// Shell command to pull changes from GitHub
+	cmd := exec.Command("git", "-C", "/app/blogger", "pull", "origin", "master")
+	err := cmd.Run()
+	if err != nil {
+		log.Printf("ERROR: Failed to pull changes from GitHub: %v", err)
+	} else {
+		log.Println("INFO: Successfully pulled changes from GitHub.")
+	}
 }
 
 // Verify GitHub Secret
