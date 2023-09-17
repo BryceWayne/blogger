@@ -23,15 +23,15 @@ docker build -t blogger-gpt-api .
 
 # Tag the image for Google Container Registry
 echo "Tagging Docker image."
-docker tag blogger-gpt-api:latest gcr.io/$project_id/blogger-gpt-api:latest
+docker tag blogger-gpt-api:latest gcr.io/$project_id/api:latest
 
 # Push the image to Google Container Registry
 echo "Pushing Docker image to GCR."
-docker push gcr.io/$project_id/blogger-gpt-api:latest
+docker push gcr.io/$project_id/api:latest
 
 # Deploy the image to Google Cloud Run
 echo "Deploying to Google Cloud Run."
-gcloud run deploy --image gcr.io/$project_id/blogger-gpt-api:latest --platform managed
+gcloud run deploy --image gcr.io/$project_id/api:latest --platform managed
 
 # Navigate back to project root
 echo "Navigating back to project root."

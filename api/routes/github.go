@@ -36,6 +36,13 @@ func NewGitHubEvent(c *fiber.Ctx, config *utils.Config, client *firestore.Client
 
 	log.Printf("DEBUG: Payload %+v\n", payload)
 
+	// Loop through commits to log added, modified, and removed files
+	for _, commit := range payload.Commits {
+		log.Println("DEBUG: Added files:", commit.Added)
+		log.Println("DEBUG: Modified files:", commit.Modified)
+		log.Println("DEBUG: Removed files:", commit.Removed)
+	}
+
 	_, _, err := client.Collection("githubEvents").Add(ctx, payload)
 	if err != nil {
 		log.Fatalf("ERROR: Failed adding event to Firestore: %v", err)

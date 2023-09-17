@@ -1,5 +1,5 @@
 # Use the official Go image
-FROM golang:1.18 as builder
+FROM golang:1.19 as builder
 
 # Copy local code to the container image.
 WORKDIR /app
