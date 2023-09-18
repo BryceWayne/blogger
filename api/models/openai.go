@@ -2,7 +2,6 @@ package models
 
 import (
 	"bytes"
-	"context"
 	"encoding/json"
 	"fmt"
 	"io/ioutil"
@@ -11,7 +10,6 @@ import (
 	"path/filepath"
 
 	"cloud.google.com/go/firestore"
-	"github.com/google/uuid"
 )
 
 type OpenAI struct {
@@ -40,6 +38,18 @@ type ChatCompletionRequest struct {
 type Message struct {
 	Role    string `json:"role"`
 	Content string `json:"content"`
+}
+
+type ChatCompletionResponse struct {
+	ID      string `json:"id"`
+	Object  string `json:"object"`
+	Choices []struct {
+		Index   int `json:"index"`
+		Message struct {
+			Role    string `json:"role"`
+			Content string `json:"content"`
+		} `json:"message"`
+	} `json:"choices"`
 }
 
 func GenerateBlogPrompt(fileContent string, fileExtension string) []Message {
@@ -88,18 +98,6 @@ func GenBlogPrompt(fContent, fExt string) []Message {
 	return msgs
 }
 
-type ChatCompletionResponse struct {
-	ID      string `json:"id"`
-	Object  string `json:"object"`
-	Choices []struct {
-		Index   int `json:"index"`
-		Message struct {
-			Role    string `json:"role"`
-			Content string `json:"content"`
-		} `json:"message"`
-	} `json:"choices"`
-}
-
 func NewOpenAI(apiKey string) *OpenAI {
 	return &OpenAI{APIKey: apiKey}
 }
@@ -145,13 +143,12 @@ func (o *OpenAI) FetchEmbedding(inputText string) (OpenAIEmbeddingResponse, erro
 	return response, nil
 }
 
-func (o *OpenAI) GenerateBlogPost(file string, client *firestore.Client) (string, error) {
+func (o *OpenAI) GenerateBlogPost(file, localFile string, client *firestore.Client) (string, error) {
 	// Get file contents
-	ctx := context.Background()
 
-	content, err := ioutil.ReadFile(file)
+	content, err := ioutil.ReadFile(localFile)
 	if err != nil {
-		log.Printf("ERROR: Failed to read file %s: %v", file, err)
+		log.Printf("ERROR: Failed to read file %s: %v", localFile, err)
 		return "", err
 	}
 
@@ -167,28 +164,9 @@ func (o *OpenAI) GenerateBlogPost(file string, client *firestore.Client) (string
 		return "", err
 	}
 
-	post := struct {
-		ID      string `json:"id"`
-		Title   string `json:"title"`
-		Content string `json:"content"`
-		File    string `json:"file"`
-	}{
-		ID:      uuid.New().String(),
-		Title:   "Generated title",
-		Content: blogPost,
-		File:    file,
-	}
-	log.Printf("DEBUG: Blog post: %v", post)
+	log.Printf("DEBUG: Blog post content: %s", blogPost)
 
-	docRef := client.Collection("posts").Doc(post.ID)
-	_, err = docRef.Set(ctx, post)
-	if err != nil {
-		log.Printf("ERROR: Failed to add blog post to Firestore: %v", err)
-	} else {
-		log.Println("INFO: Successfully added blog post to Firestore.")
-	}
 	return blogPost, nil
-
 }
 
 func (o *OpenAI) UpdateBlogPosts(files []string) {

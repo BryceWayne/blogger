@@ -47,6 +47,8 @@ func NewGitHubEvent(c *fiber.Ctx, config *utils.Config, client *firestore.Client
 }
 
 func handleCommits(config *utils.Config, client *firestore.Client, commits []models.Commits) {
+	ctx := context.Background()
+
 	files := map[string][]string{
 		"Added":    []string{},
 		"Modified": []string{},
@@ -66,25 +68,43 @@ func handleCommits(config *utils.Config, client *firestore.Client, commits []mod
 
 	log.Println("INFO: Processing added files.")
 	for _, file := range files["Added"] {
-		file = "/app/blogger/" + file
-		_, err := ai.GenerateBlogPost(file, client)
+		filepath := "/app/blogger/" + file
+		blogPost, err := ai.GenerateBlogPost(file, filepath, client)
 		if err != nil {
 			log.Printf("Error creating blog post for: %s", file)
 			break
 		}
-		// log.Printf("DEBUG: Generated blog post: %s", blogPost)
 
+		post := models.NewPost(file, "Blog Post", "OpenAI", blogPost)
+		log.Printf("DEBUG: Blog post: %+v", post)
+
+		docRef := client.Collection("posts").Doc(file)
+		_, err = docRef.Set(ctx, post)
+		if err != nil {
+			log.Printf("ERROR: Failed to add blog post to Firestore: %v", err)
+		} else {
+			log.Println("INFO: Successfully added blog post to Firestore.")
+		}
 	}
 
 	log.Println("INFO: Processing modified files.")
 	for _, file := range files["Modified"] {
-		file = "/app/blogger/" + file
-		_, err := ai.GenerateBlogPost(file, client)
+		filepath := "/app/blogger/" + file
+		blogPost, err := ai.GenerateBlogPost(file, filepath, client)
 		if err != nil {
 			log.Printf("Error creating blog post for: %s", file)
 			break
 		}
-		// log.Printf("DEBUG: Generated blog post: %s", blogPost)
+		post := models.NewPost(file, "Blog Post", "OpenAI", blogPost)
+		log.Printf("DEBUG: Blog post: %+v", post)
+
+		docRef := client.Collection("posts").Doc(file)
+		_, err = docRef.Set(ctx, post)
+		if err != nil {
+			log.Printf("ERROR: Failed to add blog post to Firestore: %v", err)
+		} else {
+			log.Println("INFO: Successfully added blog post to Firestore.")
+		}
 
 	}
 	// go ai.CreateBlogPosts(files["Added"])

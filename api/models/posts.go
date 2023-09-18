@@ -1,6 +1,10 @@
 package models
 
-import "time"
+import (
+    "time"
+
+    "github.com/google/uuid"
+)
 
 type Post struct {
     ID        string    `json:"id"`
@@ -11,4 +15,19 @@ type Post struct {
     Comments  []string  `json:"comments"`
     Likes     int64     `json:"likes"`
     CreatedAt time.Time `json:"createdAt"`
+}
+
+func NewPost(file string, title string, author string, content string) *Post {
+    return &Post{
+        ID:        uuid.New().String(),
+        File:      file,
+        Title:     title,
+        Content:   content,
+        Likes:     0,
+        CreatedAt: time.Now(),
+    }
+}
+
+func (p *Post) Create() error {
+    return nil
 }
