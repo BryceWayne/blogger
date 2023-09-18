@@ -155,10 +155,12 @@ func (o *OpenAI) GenerateBlogPost(file string, client *firestore.Client) (string
 	}
 
 	post := struct {
+		ID      string `json:"id"`
 		Title   string `json:"title"`
 		Content string `json:"content"`
 		File    string `json:"file"`
 	}{
+		ID:      "sdfshgsgh",
 		Title:   "Generated title",
 		Content: blogPost,
 		File:    file,
@@ -195,7 +197,7 @@ func (o *OpenAI) CreateGPTPrompt(messages []Message) (string, error) {
 	url := "https://api.openai.com/v1/chat/completions"
 
 	reqBody := ChatCompletionRequest{
-		Model:    "gpt-3.5-turbo",
+		Model:    "gpt-4",
 		Messages: messages,
 	}
 
