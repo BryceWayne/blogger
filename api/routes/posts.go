@@ -3,6 +3,7 @@ package routes
 import (
 	"context"
 	"log"
+	"sort"
 	"time"
 
 	"cloud.google.com/go/firestore"
@@ -36,8 +37,12 @@ func CreatePost(c *fiber.Ctx, client *firestore.Client) error {
 	return c.Status(201).JSON(fiber.Map{"status": "Post created successfully"})
 }
 
-func RecursiveFetch(ctx context.Context, client *firestore.Client, path string, posts *[]models.Post) error {
-	iter := client.Collection(path).Documents(ctx)
+func GetPosts(c *fiber.Ctx, client *firestore.Client) error {
+	ctx := context.Background()
+	var posts []models.Post
+
+	// Fetch posts from Firestore, including nested documents
+	iter := client.Collection("posts").Documents(ctx)
 	for {
 		var post models.Post
 		doc, err := iter.Next()
@@ -46,43 +51,18 @@ func RecursiveFetch(ctx context.Context, client *firestore.Client, path string, 
 		}
 		if err != nil {
 			log.Printf("ERROR: Failed to iterate: %v", err)
-			return err
+			return c.Status(500).JSON(fiber.Map{"status": "Failed to retrieve posts"})
 		}
 		if err := doc.DataTo(&post); err != nil {
 			log.Printf("ERROR: Failed to convert document to post: %v", err)
-			return err
+			return c.Status(500).JSON(fiber.Map{"status": "Failed to retrieve posts"})
 		}
-		log.Printf("DEBUG: Post: %v", post)
-		*posts = append(*posts, post)
-
-		// Recurse into nested collections
-		collsIter := doc.Ref.Collections(ctx)
-		for {
-			collRef, err := collsIter.Next()
-			if err == iterator.Done {
-				break
-			}
-			if err != nil {
-				log.Printf("ERROR: Failed to list collections: %v", err)
-				return err
-			}
-			err = RecursiveFetch(ctx, client, path+"/"+doc.Ref.ID+"/"+collRef.ID, posts)
-			if err != nil {
-				return err
-			}
-		}
+		posts = append(posts, post)
 	}
-	return nil
-}
 
-func GetPosts(c *fiber.Ctx, client *firestore.Client) error {
-	ctx := context.Background()
-	var posts []models.Post
-
-	err := RecursiveFetch(ctx, client, "posts", &posts)
-	if err != nil {
-		return c.Status(500).JSON(fiber.Map{"status": "Failed to retrieve posts"})
-	}
+	sort.Slice(posts, func(i, j int) bool {
+		return posts[i].File < posts[j].File
+	})
 
 	return c.Status(200).JSON(posts)
 }
