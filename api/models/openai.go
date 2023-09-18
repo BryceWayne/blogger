@@ -77,6 +77,17 @@ func GenerateBlogPrompt(fileContent string, fileExtension string) []Message {
 	return messages
 }
 
+func GenBlogPrompt(fContent, fExt string) []Message {
+	instContent := fmt.Sprintf("# Blog Post: %s Code\n\n## Intro\nExplain the code snippet in %s.\n\n## Code\n\\`\\`\\`%s\n%s\\`\\`\\`\n\n## Req\n1. Engaging intro\n2. Pre-requisites\n3. Line-by-line walkthrough\n4. Special techniques\n5. Use-cases\n6. Summary\n7. Use subheadings\n\n## Output\nFinal post should be in Markdown.", "Go", fExt, fContent)
+
+	msgs := []Message{
+		{Role: "system", Content: "You are helpful."},
+		{Role: "user", Content: instContent},
+	}
+
+	return msgs
+}
+
 type ChatCompletionResponse struct {
 	ID      string `json:"id"`
 	Object  string `json:"object"`
@@ -148,7 +159,7 @@ func (o *OpenAI) GenerateBlogPost(file string, client *firestore.Client) (string
 	fileExtension := filepath.Ext(file)
 	log.Printf("DEBUG: File extension: %s", fileExtension)
 
-	messages := GenerateBlogPrompt(string(content), fileExtension)
+	messages := GenBlogPrompt(string(content), fileExtension)
 
 	blogPost, err := o.CreateGPTPrompt(messages)
 	if err != nil {
