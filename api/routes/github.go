@@ -78,7 +78,7 @@ func handleCommits(config *utils.Config, client *firestore.Client, commits []mod
 		post := models.NewPost(file, "Blog Post", "OpenAI", blogPost)
 		log.Printf("DEBUG: Blog post: %+v", post)
 
-		docRef := client.Collection("posts").Doc(file)
+		docRef := client.Collection("posts").Doc(post.ID)
 		_, err = docRef.Set(ctx, post)
 		if err != nil {
 			log.Printf("ERROR: Failed to add blog post to Firestore: %v", err)
@@ -98,7 +98,7 @@ func handleCommits(config *utils.Config, client *firestore.Client, commits []mod
 		post := models.NewPost(file, "Blog Post", "OpenAI", blogPost)
 		log.Printf("DEBUG: Blog post: %+v", post)
 
-		docRef := client.Collection("posts").Doc(file)
+		docRef := client.Collection("posts").Doc(post.ID)
 		_, err = docRef.Set(ctx, post)
 		if err != nil {
 			log.Printf("ERROR: Failed to add blog post to Firestore: %v", err)
@@ -107,9 +107,19 @@ func handleCommits(config *utils.Config, client *firestore.Client, commits []mod
 		}
 
 	}
-	// go ai.CreateBlogPosts(files["Added"])
-	// go ai.UpdateBlogPosts(files["Modified"])
-	// go ai.RemoveBlogPosts(files["Removed"])
+
+	log.Println("INFO: Processing removed files.")
+	for _, file := range files["Removed"] {
+		log.Printf("DEBUG: TODO: Deleting blog post for: %s", file)
+		// docRef := client.Collection("posts").Doc(post.ID)
+		// _, err := docRef.Delete(ctx)
+		// if err != nil {
+		// 	log.Printf("ERROR: Failed to delete blog post from Firestore: %v", err)
+		// } else {
+		// 	log.Println("INFO: Successfully deleted blog post from Firestore.")
+		// }
+	}
+
 }
 
 func logCommitInfo(files map[string][]string) {

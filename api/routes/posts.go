@@ -36,27 +36,52 @@ func CreatePost(c *fiber.Ctx, client *firestore.Client) error {
 	return c.Status(201).JSON(fiber.Map{"status": "Post created successfully"})
 }
 
-func GetPosts(c *fiber.Ctx, client *firestore.Client) error {
-	ctx := context.Background()
-	var posts []models.Post
-
-	// Fetch posts from Firestore
-	iter := client.Collection("posts").Documents(ctx)
+func RecursiveFetch(ctx context.Context, client *firestore.Client, path string, posts *[]models.Post) error {
+	iter := client.Collection(path).Documents(ctx)
 	for {
+		var post models.Post
 		doc, err := iter.Next()
 		if err == iterator.Done {
 			break
 		}
 		if err != nil {
 			log.Printf("ERROR: Failed to iterate: %v", err)
-			return c.Status(500).JSON(fiber.Map{"status": "Internal Server Error"})
+			return err
 		}
-		var post models.Post
 		if err := doc.DataTo(&post); err != nil {
-			log.Printf("ERROR: Failed to convert to Post model: %v", err)
-			return c.Status(500).JSON(fiber.Map{"status": "Internal Server Error"})
+			log.Printf("ERROR: Failed to convert document to post: %v", err)
+			return err
 		}
-		posts = append(posts, post)
+		log.Printf("DEBUG: Post: %v", post)
+		*posts = append(*posts, post)
+
+		// Recurse into nested collections
+		collsIter := doc.Ref.Collections(ctx)
+		for {
+			collRef, err := collsIter.Next()
+			if err == iterator.Done {
+				break
+			}
+			if err != nil {
+				log.Printf("ERROR: Failed to list collections: %v", err)
+				return err
+			}
+			err = RecursiveFetch(ctx, client, path+"/"+doc.Ref.ID+"/"+collRef.ID, posts)
+			if err != nil {
+				return err
+			}
+		}
+	}
+	return nil
+}
+
+func GetPosts(c *fiber.Ctx, client *firestore.Client) error {
+	ctx := context.Background()
+	var posts []models.Post
+
+	err := RecursiveFetch(ctx, client, "posts", &posts)
+	if err != nil {
+		return c.Status(500).JSON(fiber.Map{"status": "Failed to retrieve posts"})
 	}
 
 	return c.Status(200).JSON(posts)
