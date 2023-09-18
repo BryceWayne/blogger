@@ -67,24 +67,24 @@ func handleCommits(config *utils.Config, client *firestore.Client, commits []mod
 	log.Println("INFO: Processing added files.")
 	for _, file := range files["Added"] {
 		file = "/app/blogger/" + file
-		blogPost, err := ai.GenerateBlogPost(file, client)
+		_, err := ai.GenerateBlogPost(file, client)
 		if err != nil {
 			log.Printf("Error creating blog post for: %s", file)
 			break
 		}
-		log.Printf("DEBUG: Generated blog post: %s", blogPost)
+		// log.Printf("DEBUG: Generated blog post: %s", blogPost)
 
 	}
 
 	log.Println("INFO: Processing modified files.")
 	for _, file := range files["Modified"] {
 		file = "/app/blogger/" + file
-		blogPost, err := ai.GenerateBlogPost(file, client)
+		_, err := ai.GenerateBlogPost(file, client)
 		if err != nil {
 			log.Printf("Error creating blog post for: %s", file)
 			break
 		}
-		log.Printf("DEBUG: Generated blog post: %s", blogPost)
+		// log.Printf("DEBUG: Generated blog post: %s", blogPost)
 
 	}
 	// go ai.CreateBlogPosts(files["Added"])

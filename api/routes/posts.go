@@ -23,7 +23,6 @@ func CreatePost(c *fiber.Ctx, client *firestore.Client) error {
 		CreatedAt: time.Now(),
 	}
 
-	// Add post to Firestore
 	postsRef := client.Collection("posts")
 	docRef := postsRef.Doc(post.ID) // Specify document ID
 	_, err := docRef.Set(ctx, post) // Set the document at the specified ID

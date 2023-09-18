@@ -135,6 +135,8 @@ func (o *OpenAI) FetchEmbedding(inputText string) (OpenAIEmbeddingResponse, erro
 
 func (o *OpenAI) GenerateBlogPost(file string, client *firestore.Client) (string, error) {
 	// Get file contents
+	ctx := context.Background()
+
 	content, err := ioutil.ReadFile(file)
 	if err != nil {
 		log.Printf("ERROR: Failed to read file %s: %v", file, err)
@@ -145,7 +147,6 @@ func (o *OpenAI) GenerateBlogPost(file string, client *firestore.Client) (string
 	fileExtension := filepath.Ext(file)
 	log.Printf("DEBUG: File extension: %s", fileExtension)
 
-	// Generate blog post using GPT (replace with your actual GPT call)
 	messages := GenerateBlogPrompt(string(content), fileExtension)
 
 	blogPost, err := o.CreateGPTPrompt(messages)
@@ -165,9 +166,10 @@ func (o *OpenAI) GenerateBlogPost(file string, client *firestore.Client) (string
 		Content: blogPost,
 		File:    file,
 	}
+	log.Printf("DEBUG: Blog post: %v", post)
 
 	docRef := client.Collection("posts").Doc(post.File)
-	_, err = docRef.Set(context.Background(), post)
+	_, err = docRef.Set(ctx, post)
 	if err != nil {
 		log.Printf("ERROR: Failed to add blog post to Firestore: %v", err)
 	} else {
@@ -203,12 +205,12 @@ func (o *OpenAI) CreateGPTPrompt(messages []Message) (string, error) {
 
 	reqBytes, err := json.Marshal(reqBody)
 	if err != nil {
-		return "", fmt.Errorf("Error marshaling request body: %v", err)
+		return "", fmt.Errorf("ERROR: Error marshaling request body: %v", err)
 	}
 
 	req, err := http.NewRequest("POST", url, bytes.NewBuffer(reqBytes))
 	if err != nil {
-		return "", fmt.Errorf("Error creating request: %v", err)
+		return "", fmt.Errorf("ERROR: Error creating request: %v", err)
 	}
 
 	req.Header.Set("Content-Type", "application/json")
@@ -218,20 +220,20 @@ func (o *OpenAI) CreateGPTPrompt(messages []Message) (string, error) {
 	client := &http.Client{}
 	resp, err := client.Do(req)
 	if err != nil {
-		return "", fmt.Errorf("Error making request: %v", err)
+		return "", fmt.Errorf("ERROR: Error making request: %v", err)
 	}
 	defer resp.Body.Close()
 
 	body, err := ioutil.ReadAll(resp.Body)
 	if err != nil {
-		return "", fmt.Errorf("Error reading response: %v", err)
+		return "", fmt.Errorf("ERROR: Error reading response: %v", err)
 	}
-	fmt.Println("HTTP Status:", resp.Status)
-	fmt.Println("Response Body:", string(body))
+	log.Println("DEBUG: HTTP Response Status:", resp.Status)
+	// log.Println("Response Body:", string(body))
 
 	var response ChatCompletionResponse
 	if err := json.Unmarshal(body, &response); err != nil {
-		return "", fmt.Errorf("Error unmarshaling response: %v", err)
+		return "", fmt.Errorf("ERROR: Error unmarshaling response: %v", err)
 	}
 
 	if len(response.Choices) > 0 {
@@ -239,7 +241,7 @@ func (o *OpenAI) CreateGPTPrompt(messages []Message) (string, error) {
 		return response.Choices[0].Message.Content, nil
 	} else {
 		// Handle the error or return
-		return "", fmt.Errorf("Error: no choices returned")
+		return "", fmt.Errorf("ERROR: no choices returned")
 	}
 
 }
