@@ -11,6 +11,7 @@ import (
 	"path/filepath"
 
 	"cloud.google.com/go/firestore"
+	"github.com/google/uuid"
 )
 
 type OpenAI struct {
@@ -161,14 +162,14 @@ func (o *OpenAI) GenerateBlogPost(file string, client *firestore.Client) (string
 		Content string `json:"content"`
 		File    string `json:"file"`
 	}{
-		ID:      "sdfshgsgh",
+		ID:      uuid.New().String(),
 		Title:   "Generated title",
 		Content: blogPost,
 		File:    file,
 	}
 	log.Printf("DEBUG: Blog post: %v", post)
 
-	docRef := client.Collection("posts").Doc(post.File)
+	docRef := client.Collection("posts").Doc(post.ID)
 	_, err = docRef.Set(ctx, post)
 	if err != nil {
 		log.Printf("ERROR: Failed to add blog post to Firestore: %v", err)
