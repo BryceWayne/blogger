@@ -15,6 +15,7 @@ type Post struct {
     Comments       []string  `json:"comments"`
     Likes          int64     `json:"likes"`
     CreatedAt      time.Time `json:"createdAt"`
+    UpdatedAt      time.Time `json:"updatedAt"`
     IsTerminalFile bool      `json:"isTerminalFile"`
 }
 
@@ -26,6 +27,7 @@ func NewPost(file string, title string, author string, content string) *Post {
         Content:        content,
         Likes:          0,
         CreatedAt:      time.Now(),
+        UpdatedAt:      time.Now(),
         IsTerminalFile: true,
     }
 }

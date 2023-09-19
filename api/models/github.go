@@ -39,3 +39,9 @@ type Commits struct {
 	Removed  []string `json:"removed"`
 	Modified []string `json:"modified"`
 }
+
+type FileStatus struct {
+	Added    bool
+	Modified bool
+	Removed  bool
+}

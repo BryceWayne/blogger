@@ -61,10 +61,6 @@ func main() {
     //     Max: 10,
     // }))
 
-    // app.Get("/post", func(c *fiber.Ctx) error {
-    //     return routes.CreatePost(c, client)
-    // })
-
     app.Get("/posts", func(c *fiber.Ctx) error {
         return routes.GetPosts(c, client)
     })

@@ -5,13 +5,16 @@ import (
 	"crypto/hmac"
 	"crypto/sha1"
 	"encoding/hex"
+	"fmt"
 	"log"
 	"os/exec"
+	"time"
 
 	"cloud.google.com/go/firestore"
 	"github.com/BryceWayne/blogger/models"
 	"github.com/BryceWayne/blogger/utils"
 	"github.com/gofiber/fiber/v2"
+	"google.golang.org/api/iterator"
 )
 
 func NewGitHubEvent(c *fiber.Ctx, config *utils.Config, client *firestore.Client) error {
@@ -47,92 +50,188 @@ func NewGitHubEvent(c *fiber.Ctx, config *utils.Config, client *firestore.Client
 }
 
 func handleCommits(config *utils.Config, client *firestore.Client, commits []models.Commits) {
-	ctx := context.Background()
+	// ctx := context.Background()
 
-	files := map[string][]string{
-		"Added":    []string{},
-		"Modified": []string{},
-		"Removed":  []string{},
-	}
+	fileStatusMap := make(map[string]models.FileStatus)
 
 	for _, commit := range commits {
-		files["Added"] = append(files["Added"], commit.Added...)
-		files["Modified"] = append(files["Modified"], commit.Modified...)
-		files["Removed"] = append(files["Removed"], commit.Removed...)
+		for _, addedFile := range commit.Added {
+			fileStatus := fileStatusMap[addedFile]
+			fileStatus.Added = true
+			fileStatus.Modified = false
+			fileStatus.Removed = false
+			fileStatusMap[addedFile] = fileStatus
+			log.Printf("DEBUG: Added file: %s", addedFile)
+		}
+
+		for _, modifiedFile := range commit.Modified {
+			fileStatus := fileStatusMap[modifiedFile]
+			fileStatus.Modified = true
+			fileStatus.Added = false
+			fileStatus.Removed = false
+			fileStatusMap[modifiedFile] = fileStatus
+			log.Printf("DEBUG: Modified file: %s", modifiedFile)
+		}
+
+		for _, removedFile := range commit.Removed {
+			fileStatus := fileStatusMap[removedFile]
+			fileStatus.Removed = true
+			fileStatus.Added = false
+			fileStatus.Modified = false
+			fileStatusMap[removedFile] = fileStatus
+			log.Printf("DEBUG: Removed file: %s", removedFile)
+		}
 	}
 
-	logCommitInfo(files)
+	// logCommitInfo(files)
 	pullChanges()
 
 	ai := models.NewOpenAI(config.OpenAIKey)
 
-	log.Println("INFO: Processing added files.")
-	for _, file := range files["Added"] {
+	// Now you can iterate through the fileStatusMap and process each file based on its status.
+	for file, status := range fileStatusMap {
 		filepath := "/app/blogger/" + file
-		blogPost, err := ai.GenerateBlogPost(file, filepath, client)
-		if err != nil {
-			log.Printf("Error creating blog post for: %s", file)
-			break
+		if status.Added {
+			// Process added file
+			blogPost, err := ai.GenerateBlogPost(file, filepath, client)
+			if err != nil {
+				log.Printf("Error creating blog post for: %s", file)
+				break
+			}
+
+			err = createPostByFileName(client, file, blogPost)
+			if err != nil {
+				log.Printf("ERROR: Failed to create post for file %s: %v", file, err)
+			} else {
+				log.Printf("INFO: Successfully created post for file %s", file)
+			}
+
 		}
+		if status.Modified {
+			// Process modified file
+			// Modify the post using the file name (file) and the updated content
+			updatedContent := "Updated content here"
+			if err := updatePostByFileName(client, file, updatedContent); err != nil {
+				log.Printf("ERROR: Failed to update post for file %s: %v", file, err)
+			} else {
+				log.Printf("INFO: Successfully updated post for file %s", file)
+			}
 
-		post := models.NewPost(file, "Blog Post", "OpenAI", blogPost)
-		log.Printf("DEBUG: Blog post: %+v", post)
-
-		docRef := client.Collection("posts").Doc(post.ID)
-		_, err = docRef.Set(ctx, post)
-		if err != nil {
-			log.Printf("ERROR: Failed to add blog post to Firestore: %v", err)
-		} else {
-			log.Println("INFO: Successfully added blog post to Firestore.")
 		}
-	}
-
-	log.Println("INFO: Processing modified files.")
-	for _, file := range files["Modified"] {
-		filepath := "/app/blogger/" + file
-		blogPost, err := ai.GenerateBlogPost(file, filepath, client)
-		if err != nil {
-			log.Printf("Error creating blog post for: %s", file)
-			break
+		if status.Removed {
+			// Process removed file
+			// Assuming you have a function to remove a post based on the file name
+			if err := removePostByFileName(client, file); err != nil {
+				log.Printf("ERROR: Failed to remove post for file %s: %v", file, err)
+			} else {
+				log.Printf("INFO: Successfully removed post for file %s", file)
+			}
 		}
-		post := models.NewPost(file, "Blog Post", "OpenAI", blogPost)
-		log.Printf("DEBUG: Blog post: %+v", post)
-
-		docRef := client.Collection("posts").Doc(post.ID)
-		_, err = docRef.Set(ctx, post)
-		if err != nil {
-			log.Printf("ERROR: Failed to add blog post to Firestore: %v", err)
-		} else {
-			log.Println("INFO: Successfully added blog post to Firestore.")
-		}
-
-	}
-
-	log.Println("INFO: Processing removed files.")
-	for _, file := range files["Removed"] {
-		log.Printf("DEBUG: TODO: Deleting blog post for: %s", file)
-		// docRef := client.Collection("posts").Doc(post.ID)
-		// _, err := docRef.Delete(ctx)
-		// if err != nil {
-		// 	log.Printf("ERROR: Failed to delete blog post from Firestore: %v", err)
-		// } else {
-		// 	log.Println("INFO: Successfully deleted blog post from Firestore.")
-		// }
 	}
 
 }
 
-func logCommitInfo(files map[string][]string) {
-	if len(files["Added"]) > 0 {
-		log.Println("DEBUG: Added files:", files["Added"])
+func createPostByFileName(client *firestore.Client, fileName string, content string) error {
+	// Create a new post using the file name and content
+	ctx := context.Background()
+
+	post := models.NewPost(fileName, "Blog Post", "OpenAI", content)
+	log.Printf("DEBUG: Blog post: %+v", post)
+
+	docRef := client.Collection("posts").Doc(post.ID)
+	_, err := docRef.Set(ctx, post)
+	if err != nil {
+		log.Printf("ERROR: Failed to add blog post to Firestore: %v", err)
+		return fmt.Errorf("Failed to add blog post to Firestore: %v", err)
 	}
-	if len(files["Modified"]) > 0 {
-		log.Println("DEBUG: Modified files:", files["Modified"])
-	}
-	if len(files["Removed"]) > 0 {
-		log.Println("DEBUG: Removed files:", files["Removed"])
-	}
+
+	return nil
 }
+
+func updatePostByFileName(client *firestore.Client, fileName string, updatedContent string) error {
+	// Fetch all root toots sorted by LikeCount
+	ctx := context.Background()
+
+	postsRef := client.Collection("posts")
+
+	iter := postsRef.Where("File", "==", fileName).Documents(ctx)
+	defer iter.Stop()
+
+	for {
+		doc, err := iter.Next()
+		if err == iterator.Done {
+			log.Printf("DEBUG: No more posts for file: %s", fileName)
+			break
+		}
+		if err != nil {
+			log.Printf("ERROR: Failed to fetch post: %v", err)
+			return fmt.Errorf("Failed to fetch post: %v", err)
+		}
+
+		var post models.Post
+		if err := doc.DataTo(&post); err != nil {
+			log.Printf("ERROR: Failed to convert to Post model: %v", err)
+			return fmt.Errorf("Failed to convert to Post model: %v", err)
+		}
+
+		post.Content = updatedContent
+		post.UpdatedAt = time.Now()
+
+		_, err = doc.Ref.Set(ctx, post)
+		if err != nil {
+			log.Printf("ERROR: Failed to update post: %v", err)
+			return fmt.Errorf("Failed to update post: %v", err)
+		}
+
+	}
+
+	return nil
+}
+
+func removePostByFileName(client *firestore.Client, fileName string) error {
+	// Fetch all root toots sorted by LikeCount
+	ctx := context.Background()
+
+	postsRef := client.Collection("posts")
+
+	iter := postsRef.Where("File", "==", fileName).Documents(ctx)
+	defer iter.Stop()
+
+	for {
+		doc, err := iter.Next()
+		if err == iterator.Done {
+			log.Printf("DEBUG: No more posts for file: %s", fileName)
+			break
+		}
+		if err != nil {
+			log.Printf("ERROR: Failed to fetch post: %v", err)
+			return fmt.Errorf("Failed to fetch post: %v", err)
+		}
+
+		_, err = doc.Ref.Delete(ctx)
+		if err != nil {
+			log.Printf("ERROR: Failed to delete post: %v", err)
+			return fmt.Errorf("Failed to delete post: %v", err)
+		}
+
+	}
+
+	return nil
+}
+
+// func logCommitInfo(fileStatusMap map[string]models.FileStatus) {
+// 	for filePath, fileStatus := range fileStatusMap {
+// 		if len(fileStatus.Added) > 0 {
+// 			log.Printf("DEBUG: Added files in commit for %s: %v\n", filePath, fileStatus.Added)
+// 		}
+// 		if len(fileStatus.Modified) > 0 {
+// 			log.Printf("DEBUG: Modified files in commit for %s: %v\n", filePath, fileStatus.Modified)
+// 		}
+// 		if len(fileStatus.Removed) > 0 {
+// 			log.Printf("DEBUG: Removed files in commit for %s: %v\n", filePath, fileStatus.Removed)
+// 		}
+// 	}
+// }
 
 func pullChanges() {
 	// Shell command to pull changes from GitHub
