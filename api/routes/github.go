@@ -110,8 +110,14 @@ func handleCommits(config *utils.Config, client *firestore.Client, commits []mod
 		if status.Modified {
 			// Process modified file
 			// Modify the post using the file name (file) and the updated content
-			updatedContent := "Updated content here"
-			if err := updatePostByFileName(client, file, updatedContent); err != nil {
+
+			blogPost, err := ai.GenerateBlogPost(file, filepath, client)
+			if err != nil {
+				log.Printf("Error creating blog post for: %s", file)
+				break
+			}
+
+			if err := updatePostByFileName(client, file, blogPost); err != nil {
 				log.Printf("ERROR: Failed to update post for file %s: %v", file, err)
 			} else {
 				log.Printf("INFO: Successfully updated post for file %s", file)
