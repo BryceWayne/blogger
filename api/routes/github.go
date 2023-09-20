@@ -162,6 +162,8 @@ func updatePostByFileName(client *firestore.Client, fileName string, updatedCont
 	iter := postsRef.Where("File", "==", fileName).Documents(ctx)
 	defer iter.Stop()
 
+	var found bool = false
+
 	for {
 		doc, err := iter.Next()
 		if err == iterator.Done {
@@ -188,14 +190,18 @@ func updatePostByFileName(client *firestore.Client, fileName string, updatedCont
 			return fmt.Errorf("Failed to update post: %v", err)
 		}
 
-	}
-	err := createPostByFileName(client, fileName, updatedContent)
-	if err != nil {
-		log.Printf("ERROR: Failed to create post for file %s: %v", fileName, err)
-		return fmt.Errorf("Failed to create post for file %s: %v", fileName, err)
+		found = true
 	}
 
-	log.Printf("INFO: Successfully created post for file %s", fileName)
+	if !found {
+		err := createPostByFileName(client, fileName, updatedContent)
+		if err != nil {
+			log.Printf("ERROR: Failed to create post for file %s: %v", fileName, err)
+			return fmt.Errorf("Failed to create post for file %s: %v", fileName, err)
+		}
+
+		log.Printf("INFO: Successfully created post for file %s", fileName)
+	}
 
 	return nil
 }
