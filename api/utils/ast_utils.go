@@ -9,7 +9,7 @@ import (
 	"strings"
 )
 
-func ParseGoFile(inputPath string) map[string]map[string]string {
+func ParseGoFile(inputPath string) interface{} {
 	codeMap := make(map[string]map[string]string)
 	codeMap["package"] = make(map[string]string)
 	codeMap["imports"] = make(map[string]string)

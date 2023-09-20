@@ -5,16 +5,13 @@ import (
 	"crypto/hmac"
 	"crypto/sha1"
 	"encoding/hex"
-	"fmt"
 	"log"
 	"os/exec"
-	"time"
 
 	"cloud.google.com/go/firestore"
 	"github.com/BryceWayne/blogger/models"
 	"github.com/BryceWayne/blogger/utils"
 	"github.com/gofiber/fiber/v2"
-	"google.golang.org/api/iterator"
 )
 
 func NewGitHubEvent(c *fiber.Ctx, config *utils.Config, client *firestore.Client) error {
@@ -89,153 +86,178 @@ func handleCommits(config *utils.Config, client *firestore.Client, commits []mod
 	ai := models.NewOpenAI(config.OpenAIKey)
 
 	// Now you can iterate through the fileStatusMap and process each file based on its status.
-	for file, status := range fileStatusMap {
-		filepath := "/app/blogger/" + file
+	for filename, status := range fileStatusMap {
+		localpath := "/app/blogger/" + filename
 		if status.Added {
 			// Process added file
-			blogPost, err := ai.GenerateBlogPost(file, filepath, client)
-			if err != nil {
-				log.Printf("Error creating blog post for: %s", file)
-				break
-			}
 
-			err = createPostByFileName(client, file, blogPost)
-			if err != nil {
-				log.Printf("ERROR: Failed to create post for file %s: %v", file, err)
-			} else {
-				log.Printf("INFO: Successfully created post for file %s", file)
-			}
+			createPostByFileName(localpath, filename, client, ai)
 
 		}
-		if status.Modified {
-			// Process modified file
-			// Modify the post using the file name (file) and the updated content
-			blogPost, err := ai.GenerateBlogPost(file, filepath, client)
-			if err != nil {
-				log.Printf("Error creating blog post for: %s", file)
-				break
-			}
+		// if status.Modified {
+		// 	// Process modified file
+		// 	// Modify the post using the file name (file) and the updated content
+		// 	blogPost, err := ai.GenerateBlogPost(file, filepath, client)
+		// 	if err != nil {
+		// 		log.Printf("Error creating blog post for: %s", file)
+		// 		break
+		// 	}
 
-			if err := updatePostByFileName(client, file, blogPost); err != nil {
-				log.Printf("ERROR: Failed to update post for file %s: %v", file, err)
-			} else {
-				log.Printf("INFO: Successfully updated post for file %s", file)
-			}
+		// 	if err := updatePostByFileName(client, file, blogPost); err != nil {
+		// 		log.Printf("ERROR: Failed to update post for file %s: %v", file, err)
+		// 	} else {
+		// 		log.Printf("INFO: Successfully updated post for file %s", file)
+		// 	}
 
-		}
-		if status.Removed {
-			// Process removed file
-			// Assuming you have a function to remove a post based on the file name
-			if err := removePostByFileName(client, file); err != nil {
-				log.Printf("ERROR: Failed to remove post for file %s: %v", file, err)
-			} else {
-				log.Printf("INFO: Successfully removed post for file %s", file)
-			}
-		}
+		// }
+		// if status.Removed {
+		// 	// Process removed file
+		// 	// Assuming you have a function to remove a post based on the file name
+		// 	if err := removePostByFileName(client, file); err != nil {
+		// 		log.Printf("ERROR: Failed to remove post for file %s: %v", file, err)
+		// 	} else {
+		// 		log.Printf("INFO: Successfully removed post for file %s", file)
+		// 	}
+		// }
 	}
 
 }
 
-func createPostByFileName(client *firestore.Client, fileName string, content string) error {
+func createPostByFileName(localpath, filename string, client *firestore.Client, ai *models.OpenAI) {
 	// Create a new post using the file name and content
-	ctx := context.Background()
+	// ctx := context.Background()
 
-	post := models.NewPost(fileName, "Blog Post", "OpenAI", content)
-	// log.Printf("DEBUG: Blog post: %+v", post)
+	codeMapInterface := utils.ParseGoFile(localpath)
 
-	docRef := client.Collection("posts").Doc(post.ID)
-	_, err := docRef.Set(ctx, post)
-	if err != nil {
-		log.Printf("ERROR: Failed to add blog post to Firestore: %v", err)
-		return fmt.Errorf("Failed to add blog post to Firestore: %v", err)
+	// var content string
+
+	// Check if the returned value is a map[string]map[string]string
+	codeMap, ok := codeMapInterface.(map[string]map[string]string)
+	if !ok {
+		log.Println("DEBUG: ParseGoFile didn't return the expected map type")
+		return
+	}
+	log.Printf("DEBUG: Code: %+v\n", codeMap)
+
+	for topLevelKey, topLevelValue := range codeMap {
+		log.Printf("DEBUG: Top-Level Key: %s", topLevelKey)
+		log.Printf("DEBUG: Top-Level Value: %v", topLevelValue)
+
+		// Now, iterate over the nested map
+		for nestedKey, nestedValue := range topLevelValue {
+			log.Printf("DEBUG: Nested Key: %s", nestedKey)
+			log.Printf("DEBUG: Nested Value: %s", nestedValue)
+		}
 	}
 
-	return nil
+	// for k, v := range codeMap {
+	// 	log.Printf("DEBUG: Key: %s", k)
+	// 	log.Printf("DEBUG: Value: %s", v)
+
+	// blogPost, err := ai.GenerateBlogPost(filename, v, client)
+	// if err != nil {
+	// 	log.Printf("Error creating blog post for code chunk: %s", v)
+	// 	break
+	// }
+	// }
+
+	// post := models.NewPost(filename, "Blog Post", "OpenAI", content)
+	// posts := []models.Post{post}
+
+	// docRef := client.Collection("posts").Doc(post.ID)
+	// _, err := docRef.Set(ctx, posts)
+	// if err != nil {
+	// 	log.Printf("ERROR: Failed to add blog post to Firestore: %v", err)
+	// 	return
+	// }
+
+	log.Printf("INFO: Successfully created post for file %s", filename)
+	return
 }
 
-func updatePostByFileName(client *firestore.Client, fileName string, updatedContent string) error {
-	// Fetch all root toots sorted by LikeCount
-	ctx := context.Background()
+// func updatePostByFileName(client *firestore.Client, fileName string, updatedContent string) error {
+// 	// Fetch all root toots sorted by LikeCount
+// 	ctx := context.Background()
 
-	postsRef := client.Collection("posts")
+// 	postsRef := client.Collection("posts")
 
-	iter := postsRef.Where("File", "==", fileName).Documents(ctx)
-	defer iter.Stop()
+// 	iter := postsRef.Where("File", "==", fileName).Documents(ctx)
+// 	defer iter.Stop()
 
-	var found bool = false
+// 	var found bool = false
 
-	for {
-		doc, err := iter.Next()
-		if err == iterator.Done {
-			log.Printf("DEBUG: No more posts for file: %s", fileName)
-			break
-		}
-		if err != nil {
-			log.Printf("ERROR: Failed to fetch post: %v", err)
-			return fmt.Errorf("Failed to fetch post: %v", err)
-		}
+// 	for {
+// 		doc, err := iter.Next()
+// 		if err == iterator.Done {
+// 			log.Printf("DEBUG: No more posts for file: %s", fileName)
+// 			break
+// 		}
+// 		if err != nil {
+// 			log.Printf("ERROR: Failed to fetch post: %v", err)
+// 			return fmt.Errorf("Failed to fetch post: %v", err)
+// 		}
 
-		var post models.Post
-		if err := doc.DataTo(&post); err != nil {
-			log.Printf("ERROR: Failed to convert to Post model: %v", err)
-			return fmt.Errorf("Failed to convert to Post model: %v", err)
-		}
+// 		var post models.Post
+// 		if err := doc.DataTo(&post); err != nil {
+// 			log.Printf("ERROR: Failed to convert to Post model: %v", err)
+// 			return fmt.Errorf("Failed to convert to Post model: %v", err)
+// 		}
 
-		post.Content = updatedContent
-		post.UpdatedAt = time.Now()
+// 		post.Content = updatedContent
+// 		post.UpdatedAt = time.Now()
 
-		_, err = doc.Ref.Set(ctx, post)
-		if err != nil {
-			log.Printf("ERROR: Failed to update post: %v", err)
-			return fmt.Errorf("Failed to update post: %v", err)
-		}
+// 		_, err = doc.Ref.Set(ctx, post)
+// 		if err != nil {
+// 			log.Printf("ERROR: Failed to update post: %v", err)
+// 			return fmt.Errorf("Failed to update post: %v", err)
+// 		}
 
-		found = true
-	}
+// 		found = true
+// 	}
 
-	if !found {
-		err := createPostByFileName(client, fileName, updatedContent)
-		if err != nil {
-			log.Printf("ERROR: Failed to create post for file %s: %v", fileName, err)
-			return fmt.Errorf("Failed to create post for file %s: %v", fileName, err)
-		}
+// 	if !found {
+// 		err := createPostByFileName(client, fileName, updatedContent)
+// 		if err != nil {
+// 			log.Printf("ERROR: Failed to create post for file %s: %v", fileName, err)
+// 			return fmt.Errorf("Failed to create post for file %s: %v", fileName, err)
+// 		}
 
-		log.Printf("INFO: Successfully created post for file %s", fileName)
-	}
+// 		log.Printf("INFO: Successfully created post for file %s", fileName)
+// 	}
 
-	return nil
-}
+// 	return nil
+// }
 
-func removePostByFileName(client *firestore.Client, fileName string) error {
-	// Fetch all root toots sorted by LikeCount
-	ctx := context.Background()
+// func removePostByFileName(client *firestore.Client, fileName string) error {
+// 	// Fetch all root toots sorted by LikeCount
+// 	ctx := context.Background()
 
-	postsRef := client.Collection("posts")
+// 	postsRef := client.Collection("posts")
 
-	iter := postsRef.Where("File", "==", fileName).Documents(ctx)
-	defer iter.Stop()
+// 	iter := postsRef.Where("File", "==", fileName).Documents(ctx)
+// 	defer iter.Stop()
 
-	for {
-		doc, err := iter.Next()
-		if err == iterator.Done {
-			log.Printf("DEBUG: No more posts for file: %s", fileName)
-			break
-		}
-		if err != nil {
-			log.Printf("ERROR: Failed to fetch post: %v", err)
-			return fmt.Errorf("Failed to fetch post: %v", err)
-		}
+// 	for {
+// 		doc, err := iter.Next()
+// 		if err == iterator.Done {
+// 			log.Printf("DEBUG: No more posts for file: %s", fileName)
+// 			break
+// 		}
+// 		if err != nil {
+// 			log.Printf("ERROR: Failed to fetch post: %v", err)
+// 			return fmt.Errorf("Failed to fetch post: %v", err)
+// 		}
 
-		_, err = doc.Ref.Delete(ctx)
-		if err != nil {
-			log.Printf("ERROR: Failed to delete post: %v", err)
-			return fmt.Errorf("Failed to delete post: %v", err)
-		}
+// 		_, err = doc.Ref.Delete(ctx)
+// 		if err != nil {
+// 			log.Printf("ERROR: Failed to delete post: %v", err)
+// 			return fmt.Errorf("Failed to delete post: %v", err)
+// 		}
 
-	}
+// 	}
 
-	return nil
-}
+// 	return nil
+// }
 
 // func logCommitInfo(fileStatusMap map[string]models.FileStatus) {
 // 	for filePath, fileStatus := range fileStatusMap {

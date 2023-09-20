@@ -95,20 +95,20 @@ func NewOpenAI(apiKey string) *OpenAI {
 	return &OpenAI{APIKey: apiKey}
 }
 
-func (o *OpenAI) GenerateBlogPost(file, localFile string, client *firestore.Client) (string, error) {
+func (o *OpenAI) GenerateBlogPost(file, content string, client *firestore.Client) (string, error) {
 	// Get file contents
 
-	content, err := ioutil.ReadFile(localFile)
-	if err != nil {
-		log.Printf("ERROR: Failed to read file %s: %v", localFile, err)
-		return "", err
-	}
+	// content, err := ioutil.ReadFile(localFile)
+	// if err != nil {
+	// 	log.Printf("ERROR: Failed to read file %s: %v", localFile, err)
+	// 	return "", err
+	// }
 
 	// Parse file extension
 	fileExtension := filepath.Ext(file)
 	// log.Printf("DEBUG: File extension: %s", fileExtension)
 
-	messages := GenerateBlogPrompt(string(content), fileExtension)
+	messages := GenerateBlogPrompt(content, fileExtension)
 
 	blogPost, err := o.CreateGPTPrompt(messages)
 	if err != nil {
