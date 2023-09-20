@@ -167,6 +167,7 @@ func updatePostByFileName(client *firestore.Client, fileName string, updatedCont
 		doc, err := iter.Next()
 		if err == iterator.Done {
 			log.Printf("DEBUG: No more posts for file: %s", fileName)
+			createPostByFileName(client, fileName, updatedContent)
 			break
 		}
 		if err != nil {
