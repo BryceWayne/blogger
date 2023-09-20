@@ -106,7 +106,7 @@ func (o *OpenAI) GenerateBlogPost(file, localFile string, client *firestore.Clie
 
 	// Parse file extension
 	fileExtension := filepath.Ext(file)
-	log.Printf("DEBUG: File extension: %s", fileExtension)
+	// log.Printf("DEBUG: File extension: %s", fileExtension)
 
 	messages := GenerateBlogPrompt(string(content), fileExtension)
 
@@ -168,7 +168,7 @@ func (o *OpenAI) CreateGPTPrompt(messages []Message) (string, error) {
 	if err != nil {
 		return "", fmt.Errorf("ERROR: Error reading response: %v", err)
 	}
-	log.Println("DEBUG: HTTP Response Status:", resp.Status)
+	// log.Println("DEBUG: HTTP Response Status:", resp.Status)
 	// log.Println("Response Body:", string(body))
 
 	var response ChatCompletionResponse

@@ -110,7 +110,6 @@ func handleCommits(config *utils.Config, client *firestore.Client, commits []mod
 		if status.Modified {
 			// Process modified file
 			// Modify the post using the file name (file) and the updated content
-
 			blogPost, err := ai.GenerateBlogPost(file, filepath, client)
 			if err != nil {
 				log.Printf("Error creating blog post for: %s", file)
@@ -142,7 +141,7 @@ func createPostByFileName(client *firestore.Client, fileName string, content str
 	ctx := context.Background()
 
 	post := models.NewPost(fileName, "Blog Post", "OpenAI", content)
-	log.Printf("DEBUG: Blog post: %+v", post)
+	// log.Printf("DEBUG: Blog post: %+v", post)
 
 	docRef := client.Collection("posts").Doc(post.ID)
 	_, err := docRef.Set(ctx, post)
@@ -190,7 +189,13 @@ func updatePostByFileName(client *firestore.Client, fileName string, updatedCont
 		}
 
 	}
-	createPostByFileName(client, fileName, updatedContent)
+	err := createPostByFileName(client, fileName, updatedContent)
+	if err != nil {
+		log.Printf("ERROR: Failed to create post for file %s: %v", fileName, err)
+		return fmt.Errorf("Failed to create post for file %s: %v", fileName, err)
+	}
+
+	log.Printf("INFO: Successfully created post for file %s", fileName)
 
 	return nil
 }
