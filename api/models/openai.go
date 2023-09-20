@@ -59,10 +59,10 @@ func GenerateInstructionContent(content, ext string) string {
 		"1. Intro\n" +
 		"2. Pre-reqs\n" +
 		"3. Line-by-Line\n" +
-		"4a. Techniques (if fn)\n" +
-		"4b. Inputs (if struct)\n" +
+		"4. Techniques if fn, Inputs if struct\n" +
 		"5. Examples\n" +
-		"6. Summary & TODOs"
+		"6. Summary & TODOs\n" +
+		"Return: One paragraph summary of 1-6"
 
 	return fmt.Sprintf(tmpl, ext, content)
 }

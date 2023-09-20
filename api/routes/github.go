@@ -29,7 +29,7 @@ func NewGitHubEvent(c *fiber.Ctx, config *utils.Config, client *firestore.Client
 		return c.Status(401).SendString("ERROR: Mismatched signature")
 	}
 
-	log.Println("DEBUG: Received valid payload")
+	// log.Println("DEBUG: Received valid payload")
 
 	ctx := context.Background()
 	var payload models.WebhookPayload
@@ -167,7 +167,6 @@ func updatePostByFileName(client *firestore.Client, fileName string, updatedCont
 		doc, err := iter.Next()
 		if err == iterator.Done {
 			log.Printf("DEBUG: No more posts for file: %s", fileName)
-			createPostByFileName(client, fileName, updatedContent)
 			break
 		}
 		if err != nil {
@@ -191,6 +190,7 @@ func updatePostByFileName(client *firestore.Client, fileName string, updatedCont
 		}
 
 	}
+	createPostByFileName(client, fileName, updatedContent)
 
 	return nil
 }
