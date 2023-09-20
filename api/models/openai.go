@@ -52,95 +52,47 @@ type ChatCompletionResponse struct {
 	} `json:"choices"`
 }
 
-func GenerateBlogPrompt(fileContent string, fileExtension string) []Message {
-	// Escaping backticks inside the string
-	instructionContent := fmt.Sprintf("# Blog Post Creation Based on a Code Snippet\n\n"+
-		"## Introduction\n"+
-		"Create a detailed and engaging blog post that explains the following code snippet. "+
-		"The code is written in %s, and it has a docstring that provides a brief explanation of what the function does.\n\n"+
-		"## Code Snippet\n"+
-		"\\`\\`\\`%s\n"+
-		"%s\n"+
-		"\\`\\`\\`\n\n"+
-		"## Requirements\n"+
-		"1. Start with an engaging introduction that sets the context for the code snippet.\n"+
-		"2. Explain any pre-requisites or concepts that the reader should understand before diving into the code.\n"+
-		"3. Walk through the code snippet, line-by-line, explaining what each line does.\n"+
-		"4. If the function uses any special programming techniques, elaborate on them.\n"+
-		"5. Provide one or more use-cases or examples demonstrating how this function could be used in a real-world scenario.\n"+
-		"6. Conclude with a summary and potential future enhancements or applications.\n"+
-		"7. Use subheadings to break up the text and make it easier to read.\n\n"+
-		"## Output\n"+
-		"The final blog post should be formatted in Markdown and be both informative and engaging.", "Go", fileExtension, fileContent)
+// GenerateInstructionContent builds a concise doc template.
+func GenerateInstructionContent(content, ext string) string {
+	const tmpl = `# %s Code Doc\n` +
+		"\\`\\`\\`%s\\`\\`\\`\n" +
+		"1. Intro\n" +
+		"2. Pre-reqs\n" +
+		"3. Line-by-Line\n" +
+		"4a. Techniques (if fn)\n" +
+		"4b. Inputs (if struct)\n" +
+		"5. Examples\n" +
+		"6. Summary & TODOs"
 
-	messages := []Message{
-		{
-			Role:    "system",
-			Content: "You are a helpful assistant.",
-		},
-		{
-			Role:    "user",
-			Content: instructionContent,
-		},
-	}
-
-	return messages
+	return fmt.Sprintf(tmpl, ext, content)
 }
 
-func GenBlogPrompt(fContent, fExt string) []Message {
-	instContent := fmt.Sprintf("# Blog Post: %s Code\n\n## Intro\nExplain the code snippet in %s.\n\n## Code\n\\`\\`\\`%s\n%s\\`\\`\\`\n\n## Req\n1. Engaging intro\n2. Pre-requisites\n3. Line-by-line walkthrough\n4. Special techniques\n5. Use-cases\n6. Summary\n7. Use subheadings\n\n## Output\nFinal post should be in Markdown.", "Go", fExt, fContent)
-
-	msgs := []Message{
-		{Role: "system", Content: "You are helpful."},
-		{Role: "user", Content: instContent},
+// GenerateSystemMessage generates the system message for the prompt.
+func GenerateSystemMessage() Message {
+	return Message{
+		Role:    "system",
+		Content: "You are a helpful and concise assistant.",
 	}
+}
 
-	return msgs
+// GenerateUserMessage generates the user message for the prompt.
+func GenerateUserMessage(instructionContent string) Message {
+	return Message{
+		Role:    "user",
+		Content: instructionContent,
+	}
+}
+
+// GenerateBlogPrompt creates the blog prompt.
+func GenerateBlogPrompt(fileContent string, fileExtension string) []Message {
+	instructionContent := GenerateInstructionContent(fileContent, fileExtension)
+	systemMessage := GenerateSystemMessage()
+	userMessage := GenerateUserMessage(instructionContent)
+	return []Message{systemMessage, userMessage}
 }
 
 func NewOpenAI(apiKey string) *OpenAI {
 	return &OpenAI{APIKey: apiKey}
-}
-
-func (o *OpenAI) FetchEmbedding(inputText string) (OpenAIEmbeddingResponse, error) {
-	url := "https://api.openai.com/v1/embeddings"
-
-	payload := map[string]interface{}{
-		"input": inputText,
-		"model": "text-embedding-ada-002",
-	}
-
-	payloadBytes, err := json.Marshal(payload)
-	if err != nil {
-		return OpenAIEmbeddingResponse{}, fmt.Errorf("Error marshaling payload: %v", err)
-	}
-
-	req, err := http.NewRequest("POST", url, bytes.NewBuffer(payloadBytes))
-	if err != nil {
-		return OpenAIEmbeddingResponse{}, fmt.Errorf("Error creating request: %v", err)
-	}
-
-	req.Header.Set("Content-Type", "application/json")
-	req.Header.Set("Authorization", "Bearer "+o.APIKey)
-
-	client := &http.Client{}
-	resp, err := client.Do(req)
-	if err != nil {
-		return OpenAIEmbeddingResponse{}, fmt.Errorf("Error making request: %v", err)
-	}
-	defer resp.Body.Close()
-
-	body, err := ioutil.ReadAll(resp.Body)
-	if err != nil {
-		return OpenAIEmbeddingResponse{}, fmt.Errorf("Error reading response: %v", err)
-	}
-
-	var response OpenAIEmbeddingResponse
-	if err := json.Unmarshal(body, &response); err != nil {
-		return OpenAIEmbeddingResponse{}, fmt.Errorf("Error unmarshaling response: %v", err)
-	}
-
-	return response, nil
 }
 
 func (o *OpenAI) GenerateBlogPost(file, localFile string, client *firestore.Client) (string, error) {
@@ -156,15 +108,13 @@ func (o *OpenAI) GenerateBlogPost(file, localFile string, client *firestore.Clie
 	fileExtension := filepath.Ext(file)
 	log.Printf("DEBUG: File extension: %s", fileExtension)
 
-	messages := GenBlogPrompt(string(content), fileExtension)
+	messages := GenerateBlogPrompt(string(content), fileExtension)
 
 	blogPost, err := o.CreateGPTPrompt(messages)
 	if err != nil {
 		log.Printf("ERROR: Failed to generate blog post: %v", err)
 		return "", err
 	}
-
-	log.Printf("DEBUG: Blog post content: %s", blogPost)
 
 	return blogPost, nil
 }
