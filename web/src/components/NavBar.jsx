@@ -8,7 +8,7 @@ export default function MyNavbar() {
       <Navbar.Toggle aria-controls="basic-navbar-nav" />
       <Navbar.Collapse id="basic-navbar-nav">
         <Nav className="mr-auto">
-          <Nav.Link href="#home">Home</Nav.Link>
+          <Nav.Link href="/">Home</Nav.Link>
           <NavDropdown title="Code" id="basic-nav-dropdown">
             <NavDropdown.Item href="#action/1">Article 1</NavDropdown.Item>
             <NavDropdown.Item href="#action/2">Article 2</NavDropdown.Item>
